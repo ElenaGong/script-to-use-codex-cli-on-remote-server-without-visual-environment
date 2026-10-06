@@ -79,6 +79,12 @@ find_codex_paths() {
 
 timestamp() { date +%Y%m%d-%H%M%S; }
 
+# macOS ships an old openrsync implementation whose socket handling can fail
+# while copying the Codex state directory. Use the portable cp fallback there.
+use_rsync() {
+  [ "$(uname -s)" != "Darwin" ] && command -v rsync >/dev/null 2>&1
+}
+
 do_export() {
   local bundle="$1"
   local tmpdir
@@ -115,12 +121,13 @@ do_export() {
     local dest="$tmpdir/stage/$rel"
     mkdir -p "$(dirname "$dest")"
 
-    if command -v rsync >/dev/null 2>&1; then
+    if use_rsync; then
       rsync -a --chmod=Du+rwx,Fu+rw "$p/" "$dest/"
     else
       # cp -a como fallback
       mkdir -p "$dest"
-      cp -a "$p/." "$dest/"
+      # Runtime sockets cannot be transferred; cp skips them on macOS.
+      cp -a "$p/." "$dest/" 2>/dev/null || true
       # Ajuste permissões no staging
       find "$dest" -type d -exec chmod 700 {} +
       find "$dest" -type f -exec chmod 600 {} +
@@ -203,7 +210,7 @@ do_import() {
     fi
 
     mkdir -p "$dest"
-    if command -v rsync >/dev/null 2>&1; then
+    if use_rsync; then
       rsync -a --chmod=Du+rwx,Fu+rw "$src/" "$dest/"
     else
       cp -a "$src/." "$dest/"
