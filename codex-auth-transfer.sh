@@ -147,7 +147,10 @@ do_export() {
   } > "$tmpdir/stage/.codex_auth_manifest"
 
   # Empacota para fora da pasta sendo arquivada para evitar loop
-  tar -czf "${PWD}/${bundle##*/}" -C "$tmpdir/stage" .
+  # Use the broadly supported ustar format and omit macOS metadata so GNU tar
+  # on Linux can extract the bundle without platform-specific extensions.
+  tar --format=ustar --no-xattrs --no-acls --no-fflags \
+    -czf "${PWD}/${bundle##*/}" -C "$tmpdir/stage" .
   chmod 600 "${PWD}/${bundle##*/}"
   log "Bundle criado: ${PWD}/${bundle##*/}"
   log "Guarde este arquivo com segurança."
